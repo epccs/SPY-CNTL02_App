@@ -1,0 +1,20 @@
+# Build artifacts
+build/
+obj/
+dist/
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+
+# Linker outputs
+*.a
+*.ar
+
+# Editor & IDE
+.idea/
+*.sw*
+*~
+*.bak
+.DS_Store
