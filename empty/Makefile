@@ -28,6 +28,9 @@ OPT = -Og
 #######################################
 # paths
 #######################################
+# Shared drivers/linker script directory (sibling folder)
+SHARED_DIR = ../STM32C092KCT6
+
 # Build path
 BUILD_DIR = build
 
@@ -39,33 +42,33 @@ C_SOURCES =  \
 Core/Src/main.c \
 Core/Src/stm32c0xx_it.c \
 Core/Src/stm32c0xx_hal_msp.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_adc.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_adc_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_dma.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_dma_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_rcc.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_rcc_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_flash.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_flash_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_gpio.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_pwr.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_pwr_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_cortex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_exti.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_i2c.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_i2c_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_spi.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_spi_ex.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_uart.c \
-Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_uart_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_adc.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_adc_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_dma.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_dma_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_rcc.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_rcc_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_flash.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_flash_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_gpio.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_pwr.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_pwr_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_cortex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_exti.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_i2c.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_i2c_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_spi.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_spi_ex.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_uart.c \
+$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_uart_ex.c \
 Core/Src/system_stm32c0xx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c  
 
 # ASM sources
 ASM_SOURCES =  \
-startup_stm32c092xx.s
+$(SHARED_DIR)/startup_stm32c092xx.s
 
 # ASMM sources
 ASMM_SOURCES = 
@@ -123,10 +126,10 @@ AS_INCLUDES =
 # C includes
 C_INCLUDES =  \
 -ICore/Inc \
--IDrivers/STM32C0xx_HAL_Driver/Inc \
--IDrivers/STM32C0xx_HAL_Driver/Inc/Legacy \
--IDrivers/CMSIS/Device/ST/STM32C0xx/Include \
--IDrivers/CMSIS/Include
+-I$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Inc \
+-I$(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Inc/Legacy \
+-I$(SHARED_DIR)/Drivers/CMSIS/Device/ST/STM32C0xx/Include \
+-I$(SHARED_DIR)/Drivers/CMSIS/Include
 
 
 # compile gcc flags
@@ -147,7 +150,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
-LDSCRIPT = STM32C092XX_FLASH.ld
+LDSCRIPT = $(SHARED_DIR)/STM32C092XX_FLASH.ld
 
 # libraries
 LIBS = -lc -lm -lnosys 
