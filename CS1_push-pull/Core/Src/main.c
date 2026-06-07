@@ -115,6 +115,7 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  uint32_t last_tick = 0;
 
   /* USER CODE END 2 */
 
@@ -125,6 +126,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    if (HAL_GetTick() - last_tick >= 1000)
+    {
+      last_tick += 1000;
+      HAL_GPIO_TogglePin(CS1_GPIO_Port, CS1_Pin);
+    }
   }
   /* USER CODE END 3 */
 }

@@ -2,7 +2,7 @@
 
 CubeMX has generated functions like MX_GPIO_Init(), HAL_GPIO_WritePin, HAL_GPIO_TogglePin, HAL_GPIO_ReadPin.
 
-- CS1_push-pull: toggle PAB9 push-pull GPIO every 500mSec.
+- CS1_push-pull: toggle PAB9 push-pull GPIO every 1000mSec.
 
 
 ## Pinout
