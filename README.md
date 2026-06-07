@@ -24,7 +24,7 @@ chmod +x SetupSTM32CubeMX-6.17.0
 # Click "Access to MCU Selector" and type the MCU e.g., STM32C092FCP6
 # Select it and click Start Project
 # Configure Hardware: (Optional) Enable your High-Speed External (HSE) clock or GPIOs if you know what you need
-# Project Manager Tab (Crucial Step): Project Name: e.g., C0_Project. Project Location: -. Toolchain / IDE: Select Makefile (For a pure Linux workflow).
+# Project Manager Tab (Crucial Step): Project Name: e.g., STM32C092KCT6_App. Project Location: -. Toolchain / IDE: Select Makefile (For a pure Linux workflow).
 # Code Generator Tab: Check "Copy only the necessary library files" to keep the folder small.
 # Generate Code: Click the blue button in the top right.
 ```
@@ -32,7 +32,7 @@ chmod +x SetupSTM32CubeMX-6.17.0
 CubeMX will create a folder structure like this:
 
 ```
-C0_Project/
+STM32C092KCT6_App/
 ├── Core/
 │   ├── Src/ (main.c lives here)
 │   └── Inc/ (header files, main.h lives here)
@@ -56,7 +56,7 @@ empty/
 STM32C092KCT6/
 ├── Drivers/ (STM32 HAL/CMSIS headers)
 ├── STM32C092KCT6_FLASH.ld
-├── STM32C092KCT6.ioc
+├── STM32C092KCT6_App.ioc
 └── startup_stm32c092xx.s
 ```
 

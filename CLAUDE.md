@@ -11,13 +11,13 @@ SPY-DRVR02/
 ├── STM32C092KCT6/          # Shared drivers (HAL/CMSIS), linker script, startup file
 │   ├── Drivers/
 │   ├── STM32C092FCP6_FLASH.ld
-│   ├── STM32C092FCP6.ioc
+│   ├── STM32C092FCP6_App.ioc
 │   └── startup_stm32c092xx.s
 ├── empty/                  # Minimal template — copy this to start a new project
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-└── PA5_push-pull/          # GPIO push-pull test for pin PA5 (~{DISCONNECT})
+└── CS1_push-pull/          # GPIO push-pull test for pin 1 (PB9)
     ├── Core/Src/main.c
     ├── Core/Inc/main.h
     └── Makefile
