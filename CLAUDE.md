@@ -8,10 +8,12 @@ Firmware for the STM32C092KCT6 application microcontroller on the SPY-CNTL02 har
 
 ```
 SPY-CNTL02_App/
-├── STM32C092KCT6/          # Shared drivers (HAL/CMSIS), linker script, startup file
+├── STM32C092KCT6/                  # Shared drivers (HAL/CMSIS), linker script, startup file
 │   ├── Drivers/
 │   │   ├── CMSIS/
-│   │   ├── EPCCS_Lib/      # Shared libs like CLI parser
+│   │   ├── EPCCS_Lib/              # Shared application libraries
+│   │   │   ├── Inc/parse_huart1.h  # RS485 CLI parser header
+│   │   │   └── Src/parse_huart1.c  # RS485 CLI parser — printf via huart1
 │   │   └── STM32C0xx_HAL_Driver/
 │   ├── STM32C092XX_FLASH.ld
 │   ├── STM32C092KCT6_App.ioc
@@ -24,7 +26,7 @@ SPY-CNTL02_App/
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-└── USART1_streaming/       # USART1 RX/TX with idle-line DMA and CLI parser
+└── USART1_streaming/       # USART1 HOST485 command interface with idle-line DMA
     ├── Core/Src/main.c
     ├── Core/Inc/main.h
     └── Makefile
@@ -99,6 +101,32 @@ Copy `empty/` to a new folder and update the `Makefile` paths if needed. The `Ma
 - SPI0.0 SPI0_SCLK SPI0_MOSI SPI0_MISO goes to R-Pi SPI0 pins.
 - MGR2HOST485 connects to the THVD1406 on the HOST485 pair and can disconnect the manager from the host RS485 pair. This is used when multiple SPY-CNTL02 boards are on the HOST485 pair and the non-bootloaded units need to be blocked.
 - SDA1 and SCL1 is an I2C bus between the Manager MCU and Application MCU.
+
+## USART1_streaming — HOST485 command interface
+
+USART1 (PA9/PA10) connects via a THVD1406 to the HOST485 RS485 pair. The project uses idle-line DMA for receive and retargeted `printf` for transmit.
+
+**Receive flow:** `HAL_UARTEx_ReceiveToIdle_DMA` listens on DMA1 Channel3 (`DMA_REQUEST_USART1_RX`). When the bus goes idle after a transmission the HAL fires `HAL_UARTEx_RxEventCallback`, which calls `LoadCommandFromDMA` and immediately re-arms the DMA.
+
+**Transmit:** `__io_putchar` in `main.c` overrides the weak stub in `syscalls.c`, routing `printf`/`putchar` to `HAL_UART_Transmit(&huart1, ...)`.
+
+**Parser:** `EPCCS_Lib/parse_huart1` parses addressed commands of the form `/address/command arg1,arg2`. `CheckAddress(MY_ADDRESS)` sets `echo_on`; all `printf` calls in the parser are gated on `echo_on` so only the addressed device responds on the shared bus. `MY_ADDRESS` is defined in `main.c` (default `'0'`).
+
+**Main loop pattern:**
+
+```C
+if (command_done)
+{
+    CheckAddress(MY_ADDRESS);
+    if (echo_on && findCommand())
+    {
+        // dispatch on command string, e.g. strcmp(command, "/pwm") == 0
+    }
+    initCommandBuffer();
+}
+```
+
+**DMA interrupt:** DMA1 Channel3 shares `DMA1_Channel2_3_IRQHandler` with SPI1_TX (Channel2). Both `HAL_DMA_IRQHandler` calls are in the handler.
 
 ## PB9 was labeled CS1
 

@@ -58,7 +58,7 @@
 extern DMA_HandleTypeDef hdma_spi1_rx;
 extern DMA_HandleTypeDef hdma_spi1_tx;
 /* USER CODE BEGIN EV */
-
+extern DMA_HandleTypeDef hdma_usart1_rx;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -165,7 +165,7 @@ void DMA1_Channel2_3_IRQHandler(void)
   /* USER CODE END DMA1_Channel2_3_IRQn 0 */
   HAL_DMA_IRQHandler(&hdma_spi1_tx);
   /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
-
+  HAL_DMA_IRQHandler(&hdma_usart1_rx);
   /* USER CODE END DMA1_Channel2_3_IRQn 1 */
 }
 

@@ -7,7 +7,8 @@
                 "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc",
                 "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc/Legacy",
                 "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Device/ST/STM32C0xx/Include",
-                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Include"
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/EPCCS_Lib/Inc"
             ],
             "defines": [
                 "USE_HAL_DRIVER",

@@ -62,7 +62,7 @@ $(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_spi.c \
 $(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_spi_ex.c \
 $(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_uart.c \
 $(SHARED_DIR)/Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_uart_ex.c \
-$(SHARED_DIR)/Drivers/EPCCS_Lib/Src/parse.c \
+$(SHARED_DIR)/Drivers/EPCCS_Lib/Src/parse_huart1.c \
 Core/Src/system_stm32c0xx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c  

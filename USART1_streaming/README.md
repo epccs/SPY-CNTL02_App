@@ -1,375 +1,124 @@
 # USART1_streaming
 
-USART1 is connected to an RS485 pair that a host can send commands over. Can we retarget stdin, stdout and stderr to USART1, the idea is as follows.
+USART1 (APP_TX1/APP_RX1, PA9/PA10) connects to a THVD1406 RS485 transceiver on the HOST485 pair. This project implements a addressed command-line interface over that half-duplex RS485 bus.
+
+## printf retargeting
+
+`syscalls.c` contains a weak `_write` stub that calls `__io_putchar`. A strong override in `main.c` routes every byte to USART1:
 
 ```C
-#include <stdio.h>
-
-extern UART_HandleTypeDef huart1; 
-
-// Retargets the C library printf function to the USART.
-int _write(int file, char *ptr, int len)
+int __io_putchar(int ch)
 {
-    // Map stdout/stderr to UART
-    if ((file == 1) || (file == 2)) 
-    {
-        HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
-        return len;
-    }
-    return -1;
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
 }
-
-// Retargets the C library scanf function to the USART.
-int _read(int file, char *ptr, int len)
-{
-    // Map stdin to UART
-    if (file == 0) 
-    {
-        // Receive data byte by byte
-        for (int i = 0; i < len; i++) 
-        {
-            HAL_UART_Receive(&huart1, (uint8_t *)&ptr[i], 1, HAL_MAX_DELAY);
-        }
-        return len;
-    }
-    return -1;
-}
-
 ```
 
-## Idle-Line DMA
+This makes `printf` the output path for all command responses. `_read`/`scanf` are not used — receive is handled by DMA.
 
-allows the hardware to automatically stream bytes into a background ring-buffer and alert when a packet transmission is complete.
+## Idle-line DMA receive
 
-ToDo: update CubeMX configuration so USART1 RX DMA is a Circular Buffer, then use an event callback like this.
+`HAL_UARTEx_ReceiveToIdle_DMA` listens into a `rx_buf[COMMAND_BUFFER_SIZE]` buffer (32 bytes) using DMA1 Channel3. It enables three interrupt sources, all of which call `HAL_UARTEx_RxEventCallback`:
+
+| Event | When | `Size` passed in |
+| ----- | ---- | ---------------- |
+| **IDLE** | Bus quiet for one frame after the last byte | bytes actually received |
+| **HT** (half-transfer) | DMA has received exactly 16 bytes with no idle yet | 16 |
+| **TC** (transfer-complete) | DMA has received all 32 bytes | 32 |
+
+**Normal operation** — a short command like `/0/pwm 127\r\n` ends with the sender going quiet. IDLE fires, `LoadCommandFromDMA` stops at `\r`, and the command is ready to dispatch.
+
+**Buffer full (TC)** — if 32 bytes arrive with no idle, the DMA stops (it is in `DMA_NORMAL` mode). The callback fires with `Size=32`. `LoadCommandFromDMA` scans for `\r`/`\n`; if none is found the resulting command will fail `findCommand` validation. The re-arm at the bottom of the callback puts the DMA back into service immediately.
+
+**Half-transfer (HT)** — if 16 bytes arrive mid-command with no idle yet, the callback would fire on partial data. The guard on `RxEventType` below skips `LoadCommandFromDMA` in that case; the DMA continues filling from where it left off and IDLE or TC delivers the complete line.
 
 ```C
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART1)
     {
-        // 'Size' tells you exactly how many bytes were received up to the pause.
-        // You can instantly parse the command here or flip your flag.
-        // command_done TBD; 
-        
-        // Restart the idle-line listening
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, BUFFER_SIZE);
+        if (huart->RxEventType != HAL_UART_RXEVENT_HT)
+        {
+            LoadCommandFromDMA(rx_buf, Size);
+        }
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, COMMAND_BUFFER_SIZE);
     }
 }
 ```
 
-## Parse idea (originally from my previous AVR project)
+DMA1 Channel3 is configured for USART1_RX in `HAL_UART_MspInit` inside `stm32c0xx_hal_msp.c`. Channel3 shares the `DMA1_Channel2_3_IRQHandler` with SPI1_TX (Channel2); both are serviced in the handler.
 
-This is just an example of a command line interface. This was for RS422 (full duplex), so echo could start after the AVR verified its address. I don't want to be done that over half duplex, so there is no command echo, just the response (I did like the keyboard feedback when typing but I don't want to complicate this)
+## Normal vs circular DMA mode
+
+`DMA_NORMAL` means the DMA counts down from 32 to 0 and stops. The callback is the natural re-arm point, and there is no ambiguity about which part of the buffer contains fresh data.
+
+`DMA_CIRCULAR` wraps back to byte 0 and keeps going, firing HT and TC repeatedly. That is useful for audio-style continuous streaming where you process one half while the other fills. For line-oriented command parsing it adds complexity with no benefit.
+
+## Command format
+
+Commands follow an addressed path format inspired by MQTT topics:
+
+```
+/address/command arg1,arg2,...
+```
+
+- `address` is a single ASCII character (default `'0'`, set by `MY_ADDRESS` in `main.c`)
+- Only the device whose address matches responds — all others ignore the line
+- Arguments are comma-delimited; no spaces within arguments
+- Example: `/0/pwm 127` or `/0/adc?`
+
+## Parser library — EPCCS_Lib/parse_huart1
+
+`STM32C092KCT6/Drivers/EPCCS_Lib/Src/parse_huart1.c` provides:
+
+| Function | Description |
+| -------- | ----------- |
+| `initCommandBuffer()` | Reset all parser state; call after dispatching or on error |
+| `LoadCommandFromDMA(buf, size)` | Copy DMA buffer into `command_buf`, set `command_done` |
+| `CheckAddress(address)` | Set `echo_on` if address field matches; gates all response output |
+| `findCommand()` | Validate and null-terminate `command`; parse arguments if present |
+| `findArgument(offset)` | Internal — called by `findCommand` |
+| `is_arg_in_ul_range(n, min, max)` | Validate and return `arg[n]` as `unsigned long` |
+| `is_arg_in_uint8_range(n, min, max)` | Validate and return `arg[n]` as `uint8_t` |
+
+Key globals exposed by the library:
 
 ```C
-#include <ctype.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <avr/pgmspace.h>
-#include "parse.h"
-#include "uart0_bsd.h"
+extern uint8_t  command_done;   // set by LoadCommandFromDMA, cleared by initCommandBuffer
+extern uint8_t  echo_on;        // set by CheckAddress; gates printf output
+extern char    *command;        // points into command_buf at the /command part
+extern char    *arg[];          // null-terminated argument strings
+extern uint8_t  arg_count;      // number of parsed arguments
+```
 
-// used to assemble command line
-char command_buf[COMMAND_BUFFER_SIZE];
-uint8_t command_head;
-uint8_t command_done;
+## Main loop dispatch pattern
 
-// used to convert command line into its parts
-char *command;
-char *arg[MAX_ARGUMENT_COUNT];
-uint8_t arg_count;
+```C
+#define MY_ADDRESS '0'
 
-// command loopback happons from the addressed device
-uint8_t echo_on;
-
-// Hold the command in the buffer and spin loop until the chunks of JSON 
-// are done outputting. Each chunk should be less than 32 bytes since that 
-// is the AVR UART buffer size. The main spin loop continues running until 
-// the uart is available for write (e.g. buffer is empty) and then the buffer is 
-// loaded with the next JSON chunk (a over full buffer will block execution)
-void initCommandBuffer(void) 
+while (1)
 {
-    command_buf[1] = '\0';  // best to set the address as a null value
-    for (uint8_t i=0; i < MAX_ARGUMENT_COUNT; i++)
+    if (command_done)
     {
-        arg[i] = NULL;
-    }
-    command = NULL;
-    command_done = 0;
-    command_head =0;
-    arg_count = 0;
-    echo_on = 0;
-}
-
-
-void StartEchoWhenAddressed(FILE *uart, char address)
-{
-    if ( (!echo_on) && (command_buf[0] == '/') && (command_buf[1] == address) )
-    {
-        echo_on = 1;
-        fprintf_P(uart, PSTR("%c%c"),command_buf[0], command_buf[1]);
-    }
-}
-
-// assemble command line from incoming char's 
-void AssembleCommand(FILE *uart) 
-{
-    int input = fgetc(uart);
-    // a return or new-line finishes the line (or starts a new command line)
-    if ( (input == '\r') || (input == '\n') ) // pressing enter in picocom sends a \r
-    {
-        //echo both carrage return and newline.
-        if (echo_on) fprintf_P(uart, PSTR("\r\n"));
-
-        // finish command line as a null terminated string
-        command_buf[command_head] = '\0';
-
-        // do not go past the buffer
-        if (command_head < (COMMAND_BUFFER_SIZE - 1) )
+        CheckAddress(MY_ADDRESS);
+        if (echo_on)
         {
-            ++command_head;
-        }
-        else // command is to big 
-        {
-            if (echo_on) fprintf_P(uart, PSTR("Ignore_Input\r\n"));
-            initCommandBuffer();
-        }
-        command_done = 1;
-    }
-    else
-    { 
-        if ( (input == '\b') || (input == 0x7F)) // backspace or delete key, picocom maps BS to DEL and DEL to BS by default
-        {
-            if (command_head>2)
+            if (findCommand())
             {
-                command_head--; // move pointer back one
-                command_buf[command_head] = '\0'; // invalidate
-                if (echo_on)
+                if (strcmp(command, "/pwm") == 0 && arg_count == 1)
                 {
-                    fputc('\b', uart); // backspace
-                    fputc(' ', uart); // space to clear what was
-                    fputc('\b', uart); // backspace again to position
-                }
-            }
-        }
-        else
-        {
-            //echo the input  
-            if (echo_on) fputc(input, uart);
-
-            // assemble the command
-            command_buf[command_head] = input;
-
-            // do not go past the buffer
-            if (command_head < (COMMAND_BUFFER_SIZE - 1) )
-            {
-                ++command_head;
-            }
-            else // command is to big
-            {
-                command_buf[1] = '\0'; 
-                if (echo_on) fprintf_P(uart, PSTR("Ignore_Input\r\n"));
-                echo_on = 0;
-            }
-        }
-    }
-}
-
-// find argument(s) starting from a given offset
-uint8_t findArgument(FILE *uart, uint8_t at_command_buf_offset) 
-{
-    if (at_command_buf_offset < COMMAND_BUFFER_SIZE) 
-    {
-        uint8_t lastAlphaNum = at_command_buf_offset;
-        
-        //get past any white space, but not end of line (EOL was replaced with a null)
-        while (isspace(command_buf[lastAlphaNum]) && !(command_buf[lastAlphaNum] == '\0')) 
-        { 
-            lastAlphaNum++;
-        }
-
-        // after command+space but the char is null
-        if( (command_buf[lastAlphaNum] == '\0') ) 
-        {
-            if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"NullArgAftrCmd+Sp\"}\r\n"));
-            initCommandBuffer();
-            return 0;
-        }
-        
-        //for each valid argument add it to the arg array of strings
-        for (arg_count = 0; command_buf[lastAlphaNum] != '\0' ; arg_count++) 
-        {
-            // to many arguments
-            if( !(arg_count < MAX_ARGUMENT_COUNT) ) 
-            {
-                if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"ArgCnt%dAt%d\"}\r\n"), arg_count, lastAlphaNum);
-                initCommandBuffer();
-                return 0;
-            }   
-            
-            arg[arg_count] = command_buf + lastAlphaNum;
-            
-            //  skip through the argument
-            while( (isalnum(command_buf[lastAlphaNum]) || (command_buf[lastAlphaNum] == '-')) && (lastAlphaNum < (COMMAND_BUFFER_SIZE-1)) ) 
-            { 
-                lastAlphaNum++;
-            }
-            if ( (command_buf[lastAlphaNum] == ARGUMNT_DELIMITER) )
-            {
-                if ( lastAlphaNum < (COMMAND_BUFFER_SIZE-2) ) 
-                {
-                    // check if char after delimiter is valid for an arg 
-                    if( !(isalnum(command_buf[lastAlphaNum+1]) || (command_buf[lastAlphaNum+1] == '-')) ) 
-                    {
-                        if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"ArgAftr'%c@%d!Valid\"}\r\n"),command_buf[lastAlphaNum],lastAlphaNum);
-                        initCommandBuffer();
-                        return 0;
-                    }  
-                    
-                    // null terminate the argument, e.g. replace the delimiter
-                    command_buf[lastAlphaNum] = '\0';
-                    lastAlphaNum++;
+                    uint8_t val = is_arg_in_uint8_range(0, 0, 255);
+                    if (val) printf("{\"pwm\":%d}\r\n", val);
                 }
                 else
                 {
-                    // a delimiter was found but there is not enough room for an argument and null termination
-                    if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"DropArgCmdLn2Lng\"}\r\n"));
-                    initCommandBuffer();
-                    return 0;
+                    printf("{\"err\":\"UnknownCmd\"}\r\n");
                 }
             }
-            
-            // only EOL or delimiter is valid way to terminate an argument (e.g. a space befor end of line is not valid)
-            else if (command_buf[lastAlphaNum] != '\0')
-            {
-                // do not index past command buffer
-                if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"!DelimAftrArg'%c@%d\"}\r\n"), command_buf[lastAlphaNum],lastAlphaNum);
-                initCommandBuffer();
-                return 0;
-            }
         }
-        return arg_count;
-    }
-    else
-    {
-        // do not index past command buffer
-        if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"ArgIndxPastCmdBuf\"}\r\n"));
         initCommandBuffer();
-        return 0;
     }
-}
-
-
-// white space is not allowed befor the command.
-// command always starts at postion 2 and ends at the first white space
-// the combined address  and command looks like an MQTT topic or the directory structure of a file system 
-// e.g. /0/pwm 127
-// find end of command and place a null termination so it can be used as a string
-uint8_t findCommand(FILE *uart) 
-{
-    uint8_t lastAlpha =2; 
-    // if command_buf has "/1/i1scan?", 
-    // then command_buf[0] is '/' and command_buf[1] is '1', they are used for addressing
-    
-    // the command always starts after the addrss at position 2
-    command = command_buf + lastAlpha;
-    
-    // Only an isspace or null may terminate a valid command.
-    // The commands first command_buf[2] is '/', then isalpha, followed by isalnum or '?'.
-    while( !( isspace(command_buf[lastAlpha]) || (command_buf[lastAlpha] == '\0') ) && lastAlpha < (COMMAND_BUFFER_SIZE-1) ) 
-    {
-        if ( (lastAlpha == 2) && (command_buf[lastAlpha] == '/') ) // index 0 is '/'
-        {
-            lastAlpha++;
-        }
-        else if ( (lastAlpha == 3) && isalpha(command_buf[lastAlpha]) ) // index 1 must be isalpha
-        {
-            lastAlpha++;
-        }
-        else if ( (lastAlpha > 3) && ( isalnum(command_buf[lastAlpha]) || (command_buf[lastAlpha] == '?') ) ) 
-        {
-            lastAlpha++;
-        }
-        else
-        {
-            if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"BadCharInCmd '%c'\"}\r\n"),command_buf[lastAlpha]);
-            initCommandBuffer();
-            return 0;
-        }
-    }
-    
-    // command does  not fit in buffer
-    if ( lastAlpha >= (COMMAND_BUFFER_SIZE-1) ) 
-    {
-        if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"HugeCmd\"}\r\n"));
-        initCommandBuffer();
-        return 0;
-    }
-
-    if ( isspace(command_buf[lastAlpha]) )
-    {
-        // the next poistion may be an argument.
-        if ( findArgument(uart, lastAlpha+1) )
-        {
-            // replace the space with a null so command works as a null terminated string.
-            command_buf[lastAlpha] = '\0';
-        }
-        else
-        {
-            // isspace() found after command but argument was not valid 
-            if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"CharAftrCmdBad '%c'\"}\r\n"),command_buf[lastAlpha+1]);
-            initCommandBuffer();
-            return 0;
-        }
-    }
-    else
-    {
-        if (command_buf[lastAlpha] != '\0')
-        {
-            // null must end command. 
-            if (echo_on) fprintf_P(uart, PSTR("{\"err\": \"MissNullAftrCmd '%c'\"}\r\n"),command_buf[lastAlpha]);
-            initCommandBuffer();
-            return 0;
-        }
-    }
-    // zero indexing is also the count and should match with strlen()
-    return lastAlpha;
-}
-
-unsigned long is_arg_in_ul_range (FILE *uart, uint8_t arg_num, unsigned long min, unsigned long max)
-{
-    // check that arg[arg_num] is a digit 
-    if ( ( !( isdigit(arg[arg_num][0]) ) ) )
-    {
-        fprintf_P(uart, PSTR("{\"err\":\"%sArg%d_NaN\"}\r\n"),command[1],arg_num);
-        return 0;
-    }
-    unsigned long ul = strtoul(arg[arg_num], (char **)NULL, 10);
-    if ( ( ul < min) || (ul > max) )
-    {
-        fprintf_P(uart, PSTR("{\"err\":\"%sArg%d_OutOfRng\"}\r\n"),command[1],arg_num);
-        return 0;
-    }
-    return ul;
-}
-
-// return arg[arg_num] value if in range
-uint8_t is_arg_in_uint8_range(FILE *uart, uint8_t arg_num, uint8_t min, uint8_t max)
-{
-    // check that arg[arg_num] is a digit 
-    if ( ( !( isdigit(arg[arg_num][0]) ) ) )
-    {
-        fprintf_P(uart, PSTR("{\"err\":\"%sArg%d_NaN\"}\r\n"),command[1],arg_num);
-        return 0;
-    }
-    uint8_t argument = atoi(arg[arg_num]);
-    if ( ( argument < min) || (argument > max) )
-    {
-        fprintf_P(uart, PSTR("{\"err\":\"%sArg%d_OutOfRng\"}\r\n"),command[1],arg_num);
-        return 0;
-    }
-    return argument;
 }
 ```
+
+Error responses from `findCommand` and the range-check helpers are JSON strings, e.g. `{"err": "BadCharInCmd 'x'"}`.

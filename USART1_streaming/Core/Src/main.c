@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "parse_huart1.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define MY_ADDRESS '0'
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,7 +54,8 @@ UART_HandleTypeDef huart3;
 UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
-
+DMA_HandleTypeDef hdma_usart1_rx;
+static uint8_t rx_buf[COMMAND_BUFFER_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,7 +75,12 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+// Route printf/putchar output to USART1, overriding the weak stub in syscalls.c.
+int __io_putchar(int ch)
+{
+    HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
 /* USER CODE END 0 */
 
 /**
@@ -115,7 +121,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  initCommandBuffer();
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, COMMAND_BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -125,6 +132,19 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    if (command_done)
+    {
+      CheckAddress(MY_ADDRESS);
+      if (echo_on)
+      {
+        if (findCommand())
+        {
+          // dispatch on command string here
+          // e.g.: if (strcmp(command, "/pwm") == 0) { ... }
+        }
+      }
+      initCommandBuffer();
+    }
   }
   /* USER CODE END 3 */
 }
@@ -617,7 +637,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+  if (huart->Instance == USART1)
+  {
+    if (huart->RxEventType != HAL_UART_RXEVENT_HT)
+    {
+      LoadCommandFromDMA(rx_buf, Size);
+    }
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, COMMAND_BUFFER_SIZE);
+  }
+}
 /* USER CODE END 4 */
 
 /**
