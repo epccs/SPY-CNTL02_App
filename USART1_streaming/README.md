@@ -3,7 +3,7 @@
 USART1 is connected to an RS485 pair that a host can send commands over. Can we retarget stdin, stdout and stderr to USART1, the idea is as follows.
 
 ```C
-#include <stdio.h>"
+#include <stdio.h>
 
 extern UART_HandleTypeDef huart1; 
 
@@ -58,7 +58,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 }
 ```
 
-## Parse idea (originaly from my previous AVR project)
+## Parse idea (originally from my previous AVR project)
 
 This is just an example of a command line interface. This was for RS422 (full duplex), so echo could start after the AVR verified its address. I don't want to be done that over half duplex, so there is no command echo, just the response (I did like the keyboard feedback when typing but I don't want to complicate this)
 

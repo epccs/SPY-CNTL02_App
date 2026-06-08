@@ -1,4 +1,4 @@
-# SPY-DRVR02 — Claude Code Context
+# SPY-CNTL02_App — Claude Code Context
 
 ## Project overview
 
@@ -7,20 +7,24 @@ Firmware for the STM32C092KCT6 application microcontroller on the SPY-CNTL02 har
 ## Repository layout
 
 ```
-SPY-DRVR02/
+SPY-CNTL02_App/
 ├── STM32C092KCT6/          # Shared drivers (HAL/CMSIS), linker script, startup file
 │   ├── Drivers/
 │   │   ├── CMSIS/
 │   │   ├── EPCCS_Lib/      # Shared libs like CLI parser
 │   │   └── STM32C0xx_HAL_Driver/
-│   ├── STM32C092FCP6_FLASH.ld
-│   ├── STM32C092FCP6_App.ioc
+│   ├── STM32C092XX_FLASH.ld
+│   ├── STM32C092KCT6_App.ioc
 │   └── startup_stm32c092xx.s
 ├── empty/                  # Minimal template — copy this to start a new project
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-└── CS1_push-pull/          # GPIO push-pull test for pin 1 (PB9)
+├── CS1_push-pull/          # GPIO push-pull test for CS1 (PB9)
+│   ├── Core/Src/main.c
+│   ├── Core/Inc/main.h
+│   └── Makefile
+└── USART1_streaming/       # USART1 RX/TX with idle-line DMA and CLI parser
     ├── Core/Src/main.c
     ├── Core/Inc/main.h
     └── Makefile
@@ -29,7 +33,7 @@ SPY-DRVR02/
 ## Building
 
 ```bash
-cd <project-folder>   # e.g., empty or PA5_push-pull
+cd <project-folder>   # e.g., empty or CS1_push-pull
 make
 ```
 
@@ -41,15 +45,13 @@ Output is in the project's `build/` directory.
 sudo apt install gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi gdb-multiarch make
 ```
 
-STM32CubeMX generated HAL library (cloned into `STM32C092KCT6/`):
+The STM32CubeMX generated HAL library is cloned into `STM32C092KCT6/`.
 
 ## Adding a new project
 
-Copy `empty/` to a new folder and update the `Makefile` paths if needed. The `Makefile` references `../STM32C092FCP6/` for drivers and the linker script.
+Copy `empty/` to a new folder and update the `Makefile` paths if needed. The `Makefile` references `../STM32C092KCT6/` for drivers and the linker script.
 
-## Pinout summary (STM32C092KCT6 LQFP-32)
-
-## Applicaiton MCU pinout summary (STM32C092KCT6 LQFP-32)
+## Application MCU pinout summary (STM32C092KCT6 LQFP-32)
 
 | Pin | Label | Function |
 | ----- | -------- | ---------- |
@@ -84,23 +86,23 @@ Copy `empty/` to a new folder and update the `Makefile` paths if needed. The `Ma
 | 31 | SDA1 | PB7 I2C1_SDA |
 | 32 | SCL1 | PB8 I2C1_SCL |
 
-- CS1 .. CS5-6 pull down to enable a 22 mA current source (e.g., can be use to power loop sensors, but does not take damage if wiring is shorted.)
-- APP_~{RST} may be pulled down by the Manager MCU and has a 10k Ohm pull up. Set in "Reset_State" durring CubeMX generator step.
-- ADC1 .. ADC6 analog inputs 
-- MGR~{RST} allows the applicaion MCU to reset the manager MCU.
-- MGR_BOOT0 allows the application MCU to set manager MCU bootloader mode. 
-- APP_BOOT0 allows the manager MCU to set the aplication MCU bootloader mode, also has 10k Ohm pull down. This also goes to the R-Pi through a 1k Ohm resistor.
+- CS1 .. CS5-6 pull down to enable a 22 mA current source (e.g., can be used to power loop sensors, but does not take damage if wiring is shorted.)
+- APP_~{RST} may be pulled down by the Manager MCU and has a 10k Ohm pull up. Set in "Reset_State" during CubeMX generator step.
+- ADC1 .. ADC6 analog inputs.
+- MGR~{RST} allows the application MCU to reset the manager MCU.
+- MGR_BOOT0 allows the application MCU to set manager MCU bootloader mode.
+- APP_BOOT0 allows the manager MCU to set the application MCU bootloader mode, also has 10k Ohm pull down. This also goes to the R-Pi through a 1k Ohm resistor.
 - MGR_TX1 and MGR_RX1 go to a THVD1406 connected to the HOST485 pair.
-- MGR_TX2 and MGR_RX2 go to a THVD1406 connected to the Lighting hader DMX1.
-- MGR_TX3 and MGR_RX3 go to a THVD1406 connected to the Lighting hader DMX2.
-- MGR_TX4 and MGR_RX4 go to a THVD1406 connected to the Lighting hader DMX3.
+- MGR_TX2 and MGR_RX2 go to a THVD1406 connected to the Lighting header DMX1.
+- MGR_TX3 and MGR_RX3 go to a THVD1406 connected to the Lighting header DMX2.
+- MGR_TX4 and MGR_RX4 go to a THVD1406 connected to the Lighting header DMX3.
 - SPI0.0 SPI0_SCLK SPI0_MOSI SPI0_MISO goes to R-Pi SPI0 pins.
-- MGR2HOST485 connects to the THVD1406 on the HOST485 pair and can disconnect the manager from the host RS485 pair. This is used when multiple SPSY-CNTL02 boards are on the HOST485 pair and the none bootloaded unitis need to be blocked.
-- SDA1 and SCL1 is an I2C bus between the Manager MCU and Applicaion MCU.
+- MGR2HOST485 connects to the THVD1406 on the HOST485 pair and can disconnect the manager from the host RS485 pair. This is used when multiple SPY-CNTL02 boards are on the HOST485 pair and the non-bootloaded units need to be blocked.
+- SDA1 and SCL1 is an I2C bus between the Manager MCU and Application MCU.
 
-## PB9 was labled CS1 
+## PB9 was labeled CS1
 
-Befor CubeMX generated code labled pins were set in the UI.
+Before CubeMX generated code, labeled pins were set in the UI.
 
 ```C
 #define CS1_Pin GPIO_PIN_9
@@ -120,5 +122,5 @@ HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_RESET);
 HAL_GPIO_TogglePin(CS1_GPIO_Port, CS1_Pin);
 ```
 
-## Help with Grammer and Spelling
+## Help with Grammar and Spelling
 
