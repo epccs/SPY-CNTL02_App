@@ -10,6 +10,9 @@ Firmware for the STM32C092KCT6 application microcontroller on the SPY-CNTL02 har
 SPY-DRVR02/
 ├── STM32C092KCT6/          # Shared drivers (HAL/CMSIS), linker script, startup file
 │   ├── Drivers/
+│   │   ├── CMSIS/
+│   │   ├── EPCCS_Lib/      # Shared libs like CLI parser
+│   │   └── STM32C0xx_HAL_Driver/
 │   ├── STM32C092FCP6_FLASH.ld
 │   ├── STM32C092FCP6_App.ioc
 │   └── startup_stm32c092xx.s
@@ -117,4 +120,5 @@ HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_RESET);
 HAL_GPIO_TogglePin(CS1_GPIO_Port, CS1_Pin);
 ```
 
+## Help with Grammer and Spelling
 
