@@ -39,7 +39,7 @@ STM32C092KCT6_App/
 ├── Drivers/ (STM32 HAL/CMSIS headers)
 ├── Makefile (The build script)
 ├── STM32C092FCP6_FLASH.ld
-├── STM32C092FCP6.ioc
+├── STM32C092FCP6_App.ioc
 └── startup_stm32c092xx.s
 ```
 
