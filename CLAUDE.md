@@ -13,7 +13,10 @@ SPY-CNTL02_App/
 │   │   ├── CMSIS/
 │   │   ├── EPCCS_Lib/              # Shared application libraries
 │   │   │   ├── Inc/parse_huart1.h  # RS485 CLI parser header
-│   │   │   └── Src/parse_huart1.c  # RS485 CLI parser — printf via huart1
+│   │   │   ├── Src/parse_huart1.c  # RS485 CLI parser — printf via huart1
+│   │   │   ├── Inc/id.h, Src/id.c              # /id? command
+│   │   │   ├── Inc/i2c1_cmd.h, Src/i2c1_cmd.c  # /iscan?, /iaddr, /ibuff, /iwrite, /iread? (I2C1 master)
+│   │   │   └── Inc/i2c1_monitor.h, Src/i2c1_monitor.c  # /imon? (I2C1 slave-listen monitor)
 │   │   └── STM32C0xx_HAL_Driver/
 │   ├── STM32C092XX_FLASH.ld
 │   ├── STM32C092KCT6_App.ioc
@@ -26,7 +29,11 @@ SPY-CNTL02_App/
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-└── USART1_streaming/       # USART1 HOST485 command interface with idle-line DMA
+├── USART1_streaming/       # USART1 HOST485 command interface with idle-line DMA
+│   ├── Core/Src/main.c
+│   ├── Core/Inc/main.h
+│   └── Makefile
+└── I2C1_debug/             # I2C1 (SDA1/SCL1) master/slave-monitor debug commands over USART1
     ├── Core/Src/main.c
     ├── Core/Inc/main.h
     └── Makefile
@@ -127,6 +134,16 @@ if (command_done)
 ```
 
 **DMA interrupt:** DMA1 Channel3 shares `DMA1_Channel2_3_IRQHandler` with SPI1_TX (Channel2). Both `HAL_DMA_IRQHandler` calls are in the handler.
+
+## I2C1_debug — I2C1 master/slave-monitor commands over HOST485
+
+Reuses USART1_streaming's idle-line-DMA receive, `parse_huart1` command parser and `__io_putchar` transmit unchanged, and adds commands that exercise I2C1 (SDA1/SCL1, PB7/PB8 — the App↔Mgr I2C bus): `/id?`, `/iscan?`, `/iaddr`, `/ibuff`/`/ibuff?`, `/iwrite`, `/iread?`, `/imon?`. See `I2C1_debug/README.md` for the full command reference and JSON response shapes.
+
+**Master commands** (`EPCCS_Lib/i2c1_cmd`): blocking HAL master API (`HAL_I2C_IsDeviceReady`, `HAL_I2C_Master_Transmit`, `HAL_I2C_Master_Receive`) against a `master_address` set by `/iaddr`, using a shared `txBuffer[32]` filled by `/ibuff`.
+
+**Slave monitor** (`EPCCS_Lib/i2c1_monitor`): `/imon?` puts I2C1 into slave-listen mode (`HAL_I2C_EnableListen_IT`) at a given address so writes from another master (e.g. the Manager MCU) can be observed and printed between commands. `I2c1MonitorCheck()` runs from the main loop whenever `command_done == 0`; `I2c1MonitorCancel()` runs before every command dispatch and on receiving any other command.
+
+**I2C1 IRQ:** I2C1 has a single combined event+error interrupt. `MX_I2C1_Init()` enables `I2C1_IRQn`, and `I2C1_IRQHandler` in `stm32c0xx_it.c` calls both `HAL_I2C_EV_IRQHandler(&hi2c1)` and `HAL_I2C_ER_IRQHandler(&hi2c1)`.
 
 ## PB9 was labeled CS1
 
