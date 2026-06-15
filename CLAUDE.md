@@ -117,23 +117,55 @@ USART1 (PA9/PA10) connects via a THVD1406 to the HOST485 RS485 pair. The project
 
 **Transmit:** `__io_putchar` in `main.c` overrides the weak stub in `syscalls.c`, routing `printf`/`putchar` to `HAL_UART_Transmit(&huart1, ...)`.
 
-**Parser:** `EPCCS_Lib/parse_huart1` parses addressed commands of the form `/address/command arg1,arg2`. `CheckAddress(MY_ADDRESS)` sets `echo_on`; all `printf` calls in the parser are gated on `echo_on` so only the addressed device responds on the shared bus. `MY_ADDRESS` is defined in `main.c` (default `'0'`).
+**Parser:** `EPCCS_Lib/parse_huart1` parses addressed commands of the form `/address/command arg1,arg2`. `CheckAddress(MY_ADDRESS)` sets `echo_on`; all `printf` calls in the parser are gated on `echo_on` so only the addressed device responds on the shared bus. `MY_ADDRESS` is `'1'` for the App MCU (Manager MCU uses `'0'`). `MY_NAME` is `"App"`.
 
-**Main loop pattern:**
+**Main loop pattern** (with a repeating command active):
 
 ```C
 if (command_done)
 {
+    RepeatCancel();           // cancel any active repeating command
     CheckAddress(MY_ADDRESS);
     if (echo_on && findCommand())
     {
-        // dispatch on command string, e.g. strcmp(command, "/pwm") == 0
+        // dispatch on command string, e.g. strcmp(command, "/id?") == 0
     }
     initCommandBuffer();
+}
+else
+{
+    RepeatCheck();            // fire the next repeat if the interval has elapsed
 }
 ```
 
 **DMA interrupt:** DMA1 Channel3 shares `DMA1_Channel2_3_IRQHandler` with SPI1_TX (Channel2). Both `HAL_DMA_IRQHandler` calls are in the handler.
+
+## EPCCS_Lib — shared command library
+
+All reusable command implementations live in `STM32C092KCT6/Drivers/EPCCS_Lib/`. Each module is a `.c`/`.h` pair; add it to the project's `Makefile` `C_SOURCES` list to use it.
+
+| Module | Commands | Notes |
+| ------ | -------- | ----- |
+| `parse_huart1` | *(parser, not a command)* | always linked |
+| `id` | `/id?` | board name/desc/gcc version |
+| `ee` | `/ee?`, `/ee` | emulated EEPROM in last 2 KB flash page; requires the `EEPROM` region in the linker script (already in `STM32C092XX_FLASH.ld`) |
+| `analog` | `/analog?`, `/adc?` | reads ADC1_IN2..IN7 (PA2..PA7); reports mV or raw counts; repeats every 2 s |
+| `i2c1_cmd` | `/iscan?`, `/iaddr`, `/ibuff`/`/ibuff?`, `/iwrite`, `/iread?` | I2C1 master; blocking HAL API |
+| `i2c1_monitor` | `/imon?` | I2C1 slave-listen; requires `I2C1_IRQn` enabled and `I2C1_IRQHandler` in `stm32c0xx_it.c` |
+
+**float printf:** the Makefiles use `nano.specs`, which does not support `%f`/`%g` by default. Use integer arithmetic instead (e.g. millivolts) or add `-u _printf_float` to `LDFLAGS`.
+
+**Repeating commands** (`analog`, and any future module that streams): the module exposes `XxxRepeatCheck()` (call from the `else` branch of the main loop) and `XxxRepeatCancel()` (call at the top of `if (command_done)`, before `CheckAddress`, so any incoming line — even to a different address — cancels the repeat).
+
+## Adding a new command
+
+1. Add `EPCCS_Lib/Inc/mycmd.h` and `EPCCS_Lib/Src/mycmd.c` (or reuse an existing module).
+2. Add `$(SHARED_DIR)/Drivers/EPCCS_Lib/Src/mycmd.c \` to `C_SOURCES` in the project's `Makefile`.
+3. In `main.c`:
+   - `#include "mycmd.h"` in the `USER CODE BEGIN Includes` block.
+   - Add an `else if (strcmp(command, "/mycmd") == 0)` branch in the dispatch chain.
+   - If the command repeats, add `MycmdRepeatCancel()` / `MycmdRepeatCheck()` calls.
+4. `make` to verify.
 
 ## I2C1_debug — I2C1 master/slave-monitor commands over HOST485
 

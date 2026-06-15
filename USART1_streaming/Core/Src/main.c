@@ -21,7 +21,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <string.h>
 #include "parse_huart1.h"
+#include "id.h"
+#include "ee.h"
+#include "analog.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +37,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define MY_ADDRESS '1'
+#define MY_NAME "App"
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -121,6 +127,7 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_ADCEx_Calibration_Start(&hadc1);
   initCommandBuffer();
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, COMMAND_BUFFER_SIZE);
   /* USER CODE END 2 */
@@ -134,16 +141,43 @@ int main(void)
     /* USER CODE BEGIN 3 */
     if (command_done)
     {
+      AnalogRepeatCancel();
       CheckAddress(MY_ADDRESS);
       if (echo_on)
       {
         if (findCommand())
         {
-          // dispatch on command string here
-          // e.g.: if (strcmp(command, "/pwm") == 0) { ... }
+          if (strcmp(command, "/id?") == 0)
+          {
+            Id(MY_NAME);
+          }
+          else if (strcmp(command, "/ee?") == 0)
+          {
+            EEread_cmd();
+          }
+          else if (strcmp(command, "/ee") == 0)
+          {
+            EEwrite_cmd();
+          }
+          else if (strcmp(command, "/analog?") == 0)
+          {
+            Analogf();
+          }
+          else if (strcmp(command, "/adc?") == 0)
+          {
+            Analogd();
+          }
+          else
+          {
+            printf("{\"err\":\"UnknownCmd\"}\r\n");
+          }
         }
       }
       initCommandBuffer();
+    }
+    else
+    {
+      AnalogRepeatCheck();
     }
   }
   /* USER CODE END 3 */

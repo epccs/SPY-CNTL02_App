@@ -59,11 +59,14 @@ _sstack = _estack - _Min_Stack_Size;
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
 _Min_Stack_Size = 0x400; /* required amount of stack */
 
-/* Specify the memory areas */
+/* The last 2KB flash page (one erase page) is reserved for emulated EEPROM,
+   see EPCCS_Lib/ee.c. FLASH is sized to 254K so the linker never places
+   code/data in that page. */
 MEMORY
 {
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 30K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 256K
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 254K
+EEPROM (r)      : ORIGIN = 0x803F800, LENGTH = 2K
 }
 
 /* Define output sections */
@@ -194,6 +197,14 @@ SECTIONS
   } >RAM
 
 
+
+  /* Emulated EEPROM page. NOLOAD: nothing is placed here, _eeprom_start just
+     marks the base address used by ee.c for erase/program operations. */
+  .eeprom (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _eeprom_start = .;
+  } >EEPROM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

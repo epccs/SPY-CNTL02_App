@@ -62,10 +62,10 @@ Commands follow an addressed path format inspired by MQTT topics:
 /address/command arg1,arg2,...
 ```
 
-- `address` is a single ASCII character (default `'0'`, set by `MY_ADDRESS` in `main.c`)
+- `address` is a single ASCII character (`'1'` for the App MCU, set by `MY_ADDRESS` in `main.c`)
 - Only the device whose address matches responds — all others ignore the line
 - Arguments are comma-delimited; no spaces within arguments
-- Example: `/0/pwm 127` or `/0/adc?`
+- Example: `/1/id?` or `/1/adc?`
 
 ## Parser library — EPCCS_Lib/parse_huart1
 
@@ -94,31 +94,69 @@ extern uint8_t  arg_count;      // number of parsed arguments
 ## Main loop dispatch pattern
 
 ```C
-#define MY_ADDRESS '0'
+#define MY_ADDRESS '1'
+#define MY_NAME    "App"
 
 while (1)
 {
     if (command_done)
     {
+        AnalogRepeatCancel();
         CheckAddress(MY_ADDRESS);
         if (echo_on)
         {
             if (findCommand())
             {
-                if (strcmp(command, "/pwm") == 0 && arg_count == 1)
-                {
-                    uint8_t val = is_arg_in_uint8_range(0, 0, 255);
-                    if (val) printf("{\"pwm\":%d}\r\n", val);
-                }
-                else
-                {
-                    printf("{\"err\":\"UnknownCmd\"}\r\n");
-                }
+                if      (strcmp(command, "/id?")    == 0) Id(MY_NAME);
+                else if (strcmp(command, "/ee?")    == 0) EEread_cmd();
+                else if (strcmp(command, "/ee")     == 0) EEwrite_cmd();
+                else if (strcmp(command, "/analog?")== 0) Analogf();
+                else if (strcmp(command, "/adc?")   == 0) Analogd();
+                else printf("{\"err\":\"UnknownCmd\"}\r\n");
             }
         }
         initCommandBuffer();
+    }
+    else
+    {
+        AnalogRepeatCheck();
     }
 }
 ```
 
 Error responses from `findCommand` and the range-check helpers are JSON strings, e.g. `{"err": "BadCharInCmd 'x'"}`.
+
+## /id? command — EPCCS_Lib/id
+
+`EPCCS_Lib/Src/id.c` provides `Id(const char name[])`:
+
+| Command | Response |
+| ------- | -------- |
+| `/1/id?` | `{"id":{"name":"App","desc":"SPY-CNTL02 App (STM32C092KCT6)","gcc":"<__VERSION__>"}}` |
+| `/1/id? name` | `{"id":{"name":"App"}}` |
+| `/1/id? desc` | `{"id":{"desc":"SPY-CNTL02 App (STM32C092KCT6)"}}` |
+| `/1/id? gcc` | `{"id":{"gcc":"<__VERSION__>"}}` |
+
+## /ee and /ee? commands — EPCCS_Lib/ee (emulated EEPROM)
+
+The STM32C092 has no EEPROM, so `EPCCS_Lib/Src/ee.c` emulates 2 KB using the **last 2 KB flash page**. `STM32C092XX_FLASH.ld` shrinks `FLASH` to 254 K and adds an `EEPROM` region at `0x803F800`, anchored by linker symbol `_eeprom_start`.
+
+| Command | Response |
+| ------- | -------- |
+| `/1/ee? 5` | `{"EE[5]":{"r":"<byte>"}}` (UINT8 default) |
+| `/1/ee? 5,UINT16` | `{"EE[5]":{"r":"<word>"}}` |
+| `/1/ee 5,42` | `{"EE[5]":{"w":"42","r":"42"}}` |
+| `/1/ee 5,1000,UINT16` | `{"EE[5]":{"w":"1000","r":"1000"}}` |
+
+Address must satisfy `addr + sizeof(type) <= 2048`. Each write erases and reprograms the full 2 KB page (~tens of ms, blocking); no wear-leveling (~10 k erase cycles).
+
+## /analog? and /adc? commands — EPCCS_Lib/analog
+
+`EPCCS_Lib/Src/analog.c` reads all six ADC channels (ADC1_IN2..ADC1_IN7, PA2..PA7) in one `HAL_ADC_Start` sequence. `HAL_ADCEx_Calibration_Start` runs once at startup.
+
+| Command | Response |
+| ------- | -------- |
+| `/1/analog?` | `{"ADC1":"<mV>","ADC2":"<mV>","ADC3":"<mV>","ADC4":"<mV>","ADC5":"<mV>","ADC6":"<mV>"}` |
+| `/1/adc?` | `{"ADC1":"<raw>","ADC2":"<raw>","ADC3":"<raw>","ADC4":"<raw>","ADC5":"<raw>","ADC6":"<raw>"}` |
+
+`/analog?` reports millivolts (`mV = raw × 3300 / 4096`); `/adc?` reports raw 12-bit counts. Both commands repeat every 2 s until any new command line arrives on the bus (`AnalogRepeatCancel` is called at the top of every dispatch pass). Output is emitted one channel per `printf` call to keep individual call length short.
