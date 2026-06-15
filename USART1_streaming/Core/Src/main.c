@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MY_ADDRESS '0'
+#define MY_ADDRESS '1'
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/

@@ -36,7 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MY_ADDRESS '0'
+#define MY_ADDRESS '1'
 #define MY_NAME "App"
 /* USER CODE END PD */
 
