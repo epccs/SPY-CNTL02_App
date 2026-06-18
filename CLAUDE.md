@@ -25,10 +25,6 @@ SPY-CNTL02_App/
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-├── CS1_push-pull/          # GPIO push-pull test for CS1 (PB9)
-│   ├── Core/Src/main.c
-│   ├── Core/Inc/main.h
-│   └── Makefile
 ├── USART1_streaming/       # USART1 HOST485 command interface with idle-line DMA
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
@@ -42,7 +38,7 @@ SPY-CNTL02_App/
 ## Building
 
 ```bash
-cd <project-folder>   # e.g., empty or CS1_push-pull
+cd <project-folder>   # e.g., empty or USART1_streaming
 make
 ```
 
@@ -152,6 +148,7 @@ All reusable command implementations live in `STM32C092KCT6/Drivers/EPCCS_Lib/`.
 | `analog` | `/analog?`, `/adc?` | ADC1_IN2..IN7 (PA2..PA7); free-running, triggered every 1 ms by TIM3's TRGO, with circular DMA (DMA1 Channel4) into a background buffer, so reports never block on a conversion; optional args select 1..6 channels (default all 6); reports mV or raw counts; repeats every 2 s |
 | `i2c1_cmd` | `/iscan?`, `/iaddr`, `/ibuff`/`/ibuff?`, `/iwrite`, `/iread?` | I2C1 master; blocking HAL API |
 | `i2c1_monitor` | `/imon?` | I2C1 slave-listen; requires `I2C1_IRQn` enabled and `I2C1_IRQHandler` in `stm32c0xx_it.c` |
+| `cs_io` | `/iowrt`, `/iotog` | CS1..CS5 current source enable outputs (PB9, PC14, PC15, PB1, PA11); output-only (no `/iodir`/`/iord?`); index 1..5 matches the CSn silkscreen labels, index 5 (`CS5_6`) drives the shared CS5/CS6 pin; CubeMX resets all five LOW (off) at boot |
 
 **float printf:** the Makefiles use `nano.specs`, which does not support `%f`/`%g` by default. Use integer arithmetic instead (e.g. millivolts) or add `-u _printf_float` to `LDFLAGS`.
 

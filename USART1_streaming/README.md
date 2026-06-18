@@ -112,6 +112,8 @@ while (1)
                 else if (strcmp(command, "/ee")     == 0) EEwrite_cmd();
                 else if (strcmp(command, "/analog?")== 0) Analogf();
                 else if (strcmp(command, "/adc?")   == 0) Analogd();
+                else if (strcmp(command, "/iowrt")  == 0) CsWrite();
+                else if (strcmp(command, "/iotog")  == 0) CsToggle();
                 else printf("{\"err\":\"UnknownCmd\"}\r\n");
             }
         }
@@ -162,3 +164,15 @@ Address must satisfy `addr + sizeof(type) <= 2048`. Each write erases and reprog
 | `/1/adc? 2` | `{"ADC2":"<raw>"}` |
 
 Optional args (up to `MAX_ARGUMENT_COUNT`) select which channels to convert/report, numbered 1..6 matching the ADC1..ADC6 labels; no args means all six. When the requested channel set differs from the one currently running, the ADC1 sequencer is reprogrammed (`HAL_ADC_Stop_DMA` / per-channel `Rank` / `HAL_ADC_Start_DMA`) before reporting; if it's unchanged, the command just reads the live buffer. `/analog?` reports millivolts (`mV = raw × 3300 / 4096`); `/adc?` reports raw 12-bit counts. Both commands repeat the same channel selection every 2 s until any new command line arrives on the bus (`AnalogRepeatCancel` is called at the top of every dispatch pass).
+
+## /iowrt and /iotog commands — EPCCS_Lib/cs_io
+
+`EPCCS_Lib/Src/cs_io.c` provides `CsWrite()` and `CsToggle()` for the CS1..CS5 current source enable outputs (PB9, PC14, PC15, PB1, PA11 — see the pinout table in the top-level `CLAUDE.md`). Each pin pulls down to enable a 22 mA current source; index 5 (`CS5_6`) drives both CS5 and CS6 from the same pin. These pins are output-only — there is no `/iodir` or `/iord?`, since a current source enable can't be read back as a sensed input. CubeMX configures all five as push-pull outputs and resets them LOW (off) at boot.
+
+| Command | Response |
+| ------- | -------- |
+| `/1/iowrt 1,HIGH` | `{"CS1":"HIGH"}` |
+| `/1/iowrt 5,LOW` | `{"CS5_6":"LOW"}` |
+| `/1/iotog 3` | `{"CS3":"HIGH"}` (or `"LOW"`, whichever it toggled to) |
+
+Argument 1 (`/iowrt`) or the only argument (`/iotog`) must be `1..5`; out-of-range or non-numeric values return `{"err":"<cmd>Arg0_OutOfRng"}` / `{"err":"<cmd>Arg0_NaN"}`. `/iowrt`'s second argument must be `HIGH` or `LOW`, else `{"err":"iowrtArg1_NaState"}`.
