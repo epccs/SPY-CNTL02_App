@@ -1,9 +1,78 @@
 {
     "configurations": [
         {
-            "name": "STM32C092xx",
+            "name": "USART1_streaming",
             "includePath": [
-                "${workspaceFolder}/**/Core/Inc",
+                "${workspaceFolder}/USART1_streaming/Core/Inc",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Device/ST/STM32C0xx/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/EPCCS_Lib/Inc"
+            ],
+            "defines": [
+                "USE_HAL_DRIVER",
+                "STM32C092xx"
+            ],
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mcpu=cortex-m0plus",
+                "-mthumb"
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "gcc-arm"
+        },
+        {
+            "name": "I2C1_debug",
+            "includePath": [
+                "${workspaceFolder}/I2C1_debug/Core/Inc",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Device/ST/STM32C0xx/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/EPCCS_Lib/Inc"
+            ],
+            "defines": [
+                "USE_HAL_DRIVER",
+                "STM32C092xx"
+            ],
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mcpu=cortex-m0plus",
+                "-mthumb"
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "gcc-arm"
+        },
+        {
+            "name": "CS1_push-pull",
+            "includePath": [
+                "${workspaceFolder}/CS1_push-pull/Core/Inc",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Device/ST/STM32C0xx/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Include",
+                "${workspaceFolder}/STM32C092KCT6/Drivers/EPCCS_Lib/Inc"
+            ],
+            "defines": [
+                "USE_HAL_DRIVER",
+                "STM32C092xx"
+            ],
+            "compilerPath": "/usr/bin/arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mcpu=cortex-m0plus",
+                "-mthumb"
+            ],
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "gcc-arm"
+        },
+        {
+            "name": "empty",
+            "includePath": [
+                "${workspaceFolder}/empty/Core/Inc",
                 "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc",
                 "${workspaceFolder}/STM32C092KCT6/Drivers/STM32C0xx_HAL_Driver/Inc/Legacy",
                 "${workspaceFolder}/STM32C092KCT6/Drivers/CMSIS/Device/ST/STM32C0xx/Include",

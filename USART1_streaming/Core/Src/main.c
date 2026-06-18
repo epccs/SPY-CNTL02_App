@@ -27,6 +27,7 @@
 #include "id.h"
 #include "ee.h"
 #include "analog.h"
+#include "cs_io.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -171,6 +172,14 @@ int main(void)
           else if (strcmp(command, "/adc?") == 0)
           {
             Analogd();
+          }
+          else if (strcmp(command, "/iowrt") == 0)
+          {
+            CsWrite();
+          }
+          else if (strcmp(command, "/iotog") == 0)
+          {
+            CsToggle();
           }
           else
           {

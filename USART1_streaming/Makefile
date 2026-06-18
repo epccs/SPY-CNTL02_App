@@ -68,6 +68,7 @@ $(SHARED_DIR)/Drivers/EPCCS_Lib/Src/parse_huart1.c \
 $(SHARED_DIR)/Drivers/EPCCS_Lib/Src/id.c \
 $(SHARED_DIR)/Drivers/EPCCS_Lib/Src/ee.c \
 $(SHARED_DIR)/Drivers/EPCCS_Lib/Src/analog.c \
+$(SHARED_DIR)/Drivers/EPCCS_Lib/Src/cs_io.c \
 Core/Src/system_stm32c0xx.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c  
