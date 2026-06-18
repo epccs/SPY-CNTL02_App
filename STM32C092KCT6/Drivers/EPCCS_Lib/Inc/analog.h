@@ -1,10 +1,16 @@
 #ifndef ANALOG_H
 #define ANALOG_H
 
-// /analog? -> {"ADC1":"<mV>",...,"ADC6":"<mV>"}, repeats every 2s until a new command arrives
+// start ADC1 free-running with DMA into the background buffer; call once at
+// boot, after HAL_ADCEx_Calibration_Start(&hadc1)
+void AnalogInit(void);
+
+// /analog? [1..6[,...]] -> {"ADC1":"<mV>",...}, only the given channels (all six
+// if no args), repeats every 2s until a new command arrives
 void Analogf(void);
 
-// /adc? -> {"ADC1":"<raw>",...,"ADC6":"<raw>"}, repeats every 2s until a new command arrives
+// /adc? [1..6[,...]] -> {"ADC1":"<raw>",...}, only the given channels (all six
+// if no args), repeats every 2s until a new command arrives
 void Analogd(void);
 
 // call from the main loop whenever command_done==0, to fire the pending repeat

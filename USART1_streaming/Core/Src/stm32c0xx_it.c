@@ -59,6 +59,7 @@ extern DMA_HandleTypeDef hdma_spi1_rx;
 extern DMA_HandleTypeDef hdma_spi1_tx;
 /* USER CODE BEGIN EV */
 extern DMA_HandleTypeDef hdma_usart1_rx;
+extern DMA_HandleTypeDef hdma_adc1;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -167,6 +168,20 @@ void DMA1_Channel2_3_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
   HAL_DMA_IRQHandler(&hdma_usart1_rx);
   /* USER CODE END DMA1_Channel2_3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMAMUX1 and DMA1 channel 4 to 5 interrupts.
+  */
+void DMAMUX1_DMA1_CH4_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMAMUX1_DMA1_CH4_5_IRQn 0 */
+
+  /* USER CODE END DMAMUX1_DMA1_CH4_5_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc1);
+  /* USER CODE BEGIN DMAMUX1_DMA1_CH4_5_IRQn 1 */
+
+  /* USER CODE END DMAMUX1_DMA1_CH4_5_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

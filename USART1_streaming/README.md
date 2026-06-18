@@ -152,11 +152,13 @@ Address must satisfy `addr + sizeof(type) <= 2048`. Each write erases and reprog
 
 ## /analog? and /adc? commands — EPCCS_Lib/analog
 
-`EPCCS_Lib/Src/analog.c` reads all six ADC channels (ADC1_IN2..ADC1_IN7, PA2..PA7) in one `HAL_ADC_Start` sequence. `HAL_ADCEx_Calibration_Start` runs once at startup.
+`EPCCS_Lib/Src/analog.c` runs ADC1 free-running: continuous conversion mode with DMA1 Channel4 copying each result into a background buffer (circular, `DMAMUX1_DMA1_CH4_5_IRQHandler`). `AnalogInit()` starts this once at boot (after `HAL_ADCEx_Calibration_Start`) on the default channel set (ADC1..ADC6), so a report never blocks on a conversion — it just reads the most recent DMA value.
 
 | Command | Response |
 | ------- | -------- |
-| `/1/analog?` | `{"ADC1":"<mV>","ADC2":"<mV>","ADC3":"<mV>","ADC4":"<mV>","ADC5":"<mV>","ADC6":"<mV>"}` |
-| `/1/adc?` | `{"ADC1":"<raw>","ADC2":"<raw>","ADC3":"<raw>","ADC4":"<raw>","ADC5":"<raw>","ADC6":"<raw>"}` |
+| `/1/analog?` | `{"ADC1":"<mV>",...,"ADC6":"<mV>"}` (all 6, default) |
+| `/1/analog? 1,3` | `{"ADC1":"<mV>","ADC3":"<mV>"}` |
+| `/1/adc?` | `{"ADC1":"<raw>",...,"ADC6":"<raw>"}` (all 6, default) |
+| `/1/adc? 2` | `{"ADC2":"<raw>"}` |
 
-`/analog?` reports millivolts (`mV = raw × 3300 / 4096`); `/adc?` reports raw 12-bit counts. Both commands repeat every 2 s until any new command line arrives on the bus (`AnalogRepeatCancel` is called at the top of every dispatch pass). Output is emitted one channel per `printf` call to keep individual call length short.
+Optional args (up to `MAX_ARGUMENT_COUNT`) select which channels to convert/report, numbered 1..6 matching the ADC1..ADC6 labels; no args means all six. When the requested channel set differs from the one currently running, the ADC1 sequencer is reprogrammed (`HAL_ADC_Stop_DMA` / per-channel `Rank` / `HAL_ADC_Start_DMA`) before reporting; if it's unchanged, the command just reads the live buffer. `/analog?` reports millivolts (`mV = raw × 3300 / 4096`); `/adc?` reports raw 12-bit counts. Both commands repeat the same channel selection every 2 s until any new command line arrives on the bus (`AnalogRepeatCancel` is called at the top of every dispatch pass).
