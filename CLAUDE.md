@@ -149,7 +149,7 @@ All reusable command implementations live in `STM32C092KCT6/Drivers/EPCCS_Lib/`.
 | `parse_huart1` | *(parser, not a command)* | always linked |
 | `id` | `/id?` | board name/desc/gcc version |
 | `ee` | `/ee?`, `/ee` | emulated EEPROM in last 2 KB flash page; requires the `EEPROM` region in the linker script (already in `STM32C092XX_FLASH.ld`) |
-| `analog` | `/analog?`, `/adc?` | ADC1_IN2..IN7 (PA2..PA7); free-running continuous-conversion + circular DMA (DMA1 Channel4) into a background buffer, so reports never block on a conversion; optional args select 1..6 channels (default all 6); reports mV or raw counts; repeats every 2 s |
+| `analog` | `/analog?`, `/adc?` | ADC1_IN2..IN7 (PA2..PA7); free-running, triggered every 1 ms by TIM3's TRGO, with circular DMA (DMA1 Channel4) into a background buffer, so reports never block on a conversion; optional args select 1..6 channels (default all 6); reports mV or raw counts; repeats every 2 s |
 | `i2c1_cmd` | `/iscan?`, `/iaddr`, `/ibuff`/`/ibuff?`, `/iwrite`, `/iread?` | I2C1 master; blocking HAL API |
 | `i2c1_monitor` | `/imon?` | I2C1 slave-listen; requires `I2C1_IRQn` enabled and `I2C1_IRQHandler` in `stm32c0xx_it.c` |
 

@@ -152,7 +152,7 @@ Address must satisfy `addr + sizeof(type) <= 2048`. Each write erases and reprog
 
 ## /analog? and /adc? commands — EPCCS_Lib/analog
 
-`EPCCS_Lib/Src/analog.c` runs ADC1 free-running: continuous conversion mode with DMA1 Channel4 copying each result into a background buffer (circular, `DMAMUX1_DMA1_CH4_5_IRQHandler`). `AnalogInit()` starts this once at boot (after `HAL_ADCEx_Calibration_Start`) on the default channel set (ADC1..ADC6), so a report never blocks on a conversion — it just reads the most recent DMA value.
+`EPCCS_Lib/Src/analog.c` runs ADC1 free-running, triggered every 1 ms by TIM3's TRGO (`MX_TIM3_Init` in `main.c`: 12 MHz APB clock / 12 prescaler / 1000 period), with DMA1 Channel4 copying each scan into a background buffer (circular, `DMAMUX1_DMA1_CH4_5_IRQHandler`). `AnalogInit()` starts TIM3 and the ADC1 DMA once at boot (after `HAL_ADCEx_Calibration_Start`) on the default channel set (ADC1..ADC6), so a report never blocks on a conversion — it just reads the most recent DMA value. The fixed, hardware-timed 1 ms cadence (vs. free-running continuous conversion) matters once a sense-resistor channel needs trapezoidal integration into mA·s/A·h: the time step is exact and independent of main-loop jitter, including this firmware's blocking calls (EEPROM page erase, I2C master timeouts).
 
 | Command | Response |
 | ------- | -------- |

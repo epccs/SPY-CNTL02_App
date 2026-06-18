@@ -5,6 +5,7 @@
 #include "analog.h"
 
 extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim3; // drives ADC1's regular trigger (TRGO) at a fixed 1 ms rate
 
 #define ANALOG_CHANNELS  6U
 #define ANALOG_REPEAT_MS 2000U
@@ -30,8 +31,9 @@ typedef enum
 static analog_repeat_t analog_repeat = ANALOG_REPEAT_NONE;
 static uint32_t analog_repeat_next;
 
-// ADC1 runs continuous-conversion with DMA-into-this-buffer, so a report
-// never waits on a conversion; it just reads whatever DMA last wrote.
+// ADC1 is triggered by TIM3's TRGO every 1 ms and DMA copies each scan into
+// this buffer, so a report never waits on a conversion; it just reads
+// whatever DMA last wrote.
 static volatile uint16_t dma_raw[ANALOG_CHANNELS];
 
 // Ascending 0-based indices (0=ADC1 .. 5=ADC6) of the channels currently in
@@ -56,8 +58,8 @@ static uint8_t SelectionChanged(const uint8_t *indices, uint8_t count)
 }
 
 // Reprogram ADC1's fixed-channel-number scan sequence to convert only the
-// given channels, then restart continuous DMA acquisition so dma_raw[] keeps
-// refreshing in the background. indices must be ascending.
+// given channels, then restart DMA acquisition so dma_raw[] keeps refreshing
+// every 1 ms off TIM3's TRGO. indices must be ascending.
 static void ReconfigureChannels(const uint8_t *indices, uint8_t count)
 {
     HAL_ADC_Stop_DMA(&hadc1);
@@ -151,10 +153,12 @@ static void PrintAnalogd(void)
     printf("}\r\n");
 }
 
-// Start ADC1 free-running (continuous conversion + circular DMA) on the
-// default channel set, so dma_raw[] is already fresh before any command.
+// Start TIM3 (1 ms TRGO, see MX_TIM3_Init in main.c) and ADC1's circular DMA
+// on the default channel set, so dma_raw[] is already being refreshed every
+// 1 ms before any command arrives.
 void AnalogInit(void)
 {
+    HAL_TIM_Base_Start(&htim3);
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)dma_raw, selected_count);
 }
 
