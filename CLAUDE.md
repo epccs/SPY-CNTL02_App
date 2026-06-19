@@ -16,7 +16,8 @@ SPY-CNTL02_App/
 │   │   │   ├── Src/parse_huart1.c  # RS485 CLI parser — printf via huart1
 │   │   │   ├── Inc/id.h, Src/id.c              # /id? command
 │   │   │   ├── Inc/i2c1_cmd.h, Src/i2c1_cmd.c  # /iscan?, /iaddr, /ibuff, /iwrite, /iread? (I2C1 master)
-│   │   │   └── Inc/i2c1_monitor.h, Src/i2c1_monitor.c  # /imon? (I2C1 slave-listen monitor)
+│   │   │   ├── Inc/i2c1_monitor.h, Src/i2c1_monitor.c  # /imon? (I2C1 slave-listen monitor)
+│   │   │   └── Inc/spi1_debug.h, Src/spi1_debug.c  # /spi? (SPI1 slave block-test vs R-Pi SPI0)
 │   │   └── STM32C0xx_HAL_Driver/
 │   ├── STM32C092XX_FLASH.ld
 │   ├── STM32C092KCT6_App.ioc
@@ -29,7 +30,11 @@ SPY-CNTL02_App/
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-└── I2C1_debug/             # I2C1 (SDA1/SCL1) master/slave-monitor debug commands over USART1
+├── I2C1_debug/             # I2C1 (SDA1/SCL1) master/slave-monitor debug commands over USART1
+│   ├── Core/Src/main.c
+│   ├── Core/Inc/main.h
+│   └── Makefile
+└── SPI1_debug/             # SPI1 (RPSPI0.0/SCLK/MISO/MOSI) slave block-test vs R-Pi SPI0, over USART1
     ├── Core/Src/main.c
     ├── Core/Inc/main.h
     └── Makefile
@@ -149,6 +154,7 @@ All reusable command implementations live in `STM32C092KCT6/Drivers/EPCCS_Lib/`.
 | `i2c1_cmd` | `/iscan?`, `/iaddr`, `/ibuff`/`/ibuff?`, `/iwrite`, `/iread?` | I2C1 master; blocking HAL API |
 | `i2c1_monitor` | `/imon?` | I2C1 slave-listen; requires `I2C1_IRQn` enabled and `I2C1_IRQHandler` in `stm32c0xx_it.c` |
 | `cs_io` | `/iowrt`, `/iotog` | CS1..CS5 current source enable outputs (PB9, PC14, PC15, PB1, PA11); output-only (no `/iodir`/`/iord?`); index 1..5 matches the CSn silkscreen labels, index 5 (`CS5_6`) drives the shared CS5/CS6 pin; CubeMX resets all five LOW (off) at boot |
+| `spi1_debug` | `/spi?` | SPI1 slave (R-Pi SPI0 is master, hardware NSS, CS toggles per 2 KB block); ping-pong `DMA_NORMAL` transfers on `SPI1_RX`/`SPI1_TX` re-armed in `HAL_SPI_TxRxCpltCallback`; reports completed-block count and the CRC32 (hardware CRC peripheral) of the data sent/received that block; outgoing data is software-PRNG (xorshift32), since this part has no hardware RNG |
 
 **float printf:** the Makefiles use `nano.specs`, which does not support `%f`/`%g` by default. Use integer arithmetic instead (e.g. millivolts) or add `-u _printf_float` to `LDFLAGS`.
 
