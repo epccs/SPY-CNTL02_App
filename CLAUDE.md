@@ -18,7 +18,8 @@ SPY-CNTL02_App/
 │   │   │   ├── Inc/i2c1_cmd.h, Src/i2c1_cmd.c  # /iscan?, /iaddr, /ibuff, /iwrite, /iread? (I2C1 master)
 │   │   │   ├── Inc/i2c1_monitor.h, Src/i2c1_monitor.c  # /imon? (I2C1 slave-listen monitor)
 │   │   │   ├── Inc/spi1_debug.h, Src/spi1_debug.c  # /spi? (SPI1 slave block-test vs R-Pi SPI0)
-│   │   │   └── Inc/usart234_debug.h, Src/usart234_debug.c  # /usart234? (SPI1-driven USART2/3/4 test bridge)
+│   │   │   ├── Inc/usart234_debug.h, Src/usart234_debug.c  # /usart234? (SPI1-driven USART2/3/4 test bridge)
+│   │   │   └── Inc/dmx_output.h, Src/dmx_output.c  # /save (SPI1-driven 3-universe DMX512 output on USART2/3/4)
 │   │   └── STM32C0xx_HAL_Driver/
 │   ├── STM32C092XX_FLASH.ld
 │   ├── STM32C092KCT6_App.ioc
@@ -39,7 +40,11 @@ SPY-CNTL02_App/
 │   ├── Core/Src/main.c
 │   ├── Core/Inc/main.h
 │   └── Makefile
-└── USART234_debug/         # SPI1-driven test bridge to USART2/3/4 (test header loop), over USART1
+├── USART234_debug/         # SPI1-driven test bridge to USART2/3/4 (test header loop), over USART1
+│   ├── Core/Src/main.c
+│   ├── Core/Inc/main.h
+│   └── Makefile
+└── DMX_debug/              # SPI1-driven 3-universe DMX512 output (DMX1/2/3 on USART2/3/4), over USART1
     ├── Core/Src/main.c
     ├── Core/Inc/main.h
     └── Makefile
@@ -161,6 +166,7 @@ All reusable command implementations live in `STM32C092KCT6/Drivers/EPCCS_Lib/`.
 | `cs_io` | `/iowrt`, `/iotog` | CS1..CS5 current source enable outputs (PB9, PC14, PC15, PB1, PA11); output-only (no `/iodir`/`/iord?`); index 1..5 matches the CSn silkscreen labels, index 5 (`CS5_6`) drives the shared CS5/CS6 pin; CubeMX resets all five LOW (off) at boot |
 | `spi1_debug` | `/spi?` | SPI1 slave (R-Pi SPI0 is master, hardware NSS, CS toggles per 2 KB block); ping-pong `DMA_NORMAL` transfers on `SPI1_RX`/`SPI1_TX` re-armed in `HAL_SPI_TxRxCpltCallback`; reports completed-block count and the CRC32 (hardware CRC peripheral) of the data sent/received that block; outgoing data is software-PRNG (xorshift32), since this part has no hardware RNG |
 | `usart234_debug` | `/usart234?` | Reuses the SPI1 slave ping-pong from `spi1_debug` as the test heartbeat, but splits each 2 KB block into four 512 B slots: slot0 (received from R-Pi) is forwarded out USART2 TX (`HAL_UART_Transmit_IT`, no DMA channel left for it); slot1/slot2 (returned to R-Pi) are filled from fixed 512 B DMA capture windows on USART3/USART4 (DMA1 Channel4/Channel5, snapshotted and restarted every block via `HAL_UART_DMAStop`/`__HAL_DMA_GET_COUNTER`); slot3 is always zero. One block of pipeline latency between a USART3/4 capture and its return to the R-Pi, same ping-pong constraint as `spi1_debug` |
+| `dmx_output` | `/save` | SPI1 slave ping-pong (same as `spi1_debug`) feeds a 2 KB `activeFrame`: slot0/1/2 (512 B each) become DMX1/DMX2/DMX3 channel data on USART2/USART3/USART4, slot3 unused. `DmxRepeatCheck()` (called from the main loop) refreshes all three universes at ~40 Hz regardless of whether the frame changed, bit-banging break (~100 µs)/MAB (~16 µs) on the TX pins via a hand-added free-running TIM16 (1 MHz, no DWT on Cortex-M0+) before each `HAL_UART_Transmit_IT` frame (no DMA channel left — Channel1-3 are SPI1/USART1, Channel4/5 are ADC1 for `analog.c`). `/save` erases+programs the emulated EEPROM page (shared mechanism with `ee.c`, exactly one frame in size) from `activeFrame` as the power-up default, loaded by `DmxOutputInit()` before any SPI data arrives |
 
 **float printf:** the Makefiles use `nano.specs`, which does not support `%f`/`%g` by default. Use integer arithmetic instead (e.g. millivolts) or add `-u _printf_float` to `LDFLAGS`.
 
